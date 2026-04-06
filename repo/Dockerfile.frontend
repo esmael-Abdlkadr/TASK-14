@@ -5,9 +5,17 @@
 # Stage 1: Build WASM with trunk
 FROM rust:1.88-bookworm AS builder
 
-# Install wasm target and trunk
+# Install wasm target
 RUN rustup target add wasm32-unknown-unknown
-RUN cargo install trunk --locked
+
+# Install prebuilt trunk binary (avoids heavy cargo install/OOM on CI)
+ARG TRUNK_VERSION=0.21.14
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+    && curl -L "https://github.com/trunk-rs/trunk/releases/download/v${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz" \
+       | tar -xz -C /usr/local/bin trunk \
+    && chmod +x /usr/local/bin/trunk \
+    && apt-get purge -y --auto-remove curl \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/frontend
 
