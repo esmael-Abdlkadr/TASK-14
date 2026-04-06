@@ -13,3 +13,5 @@ repo/frontend/dist/
 # Local runtime/test artifacts
 **/.tokens
 .env
+1e5b6143-bd2c-4531-bac9-9a4e46d10b47.jsonl
+convert_ai_session.py
