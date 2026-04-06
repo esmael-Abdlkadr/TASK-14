@@ -1,4 +1,4 @@
-use web_sys::{HtmlInputElement, HtmlSelectElement};
+use web_sys::HtmlSelectElement;
 use yew::prelude::*;
 
 use crate::services::admin_api;
@@ -15,6 +15,8 @@ pub fn admin_page() -> Html {
     let is_loading = use_state(|| false);
     let error = use_state(|| None::<String>);
     let report_status = use_state(|| None::<String>);
+    let report_type = use_state(|| "kpi_summary".to_string());
+    let report_format = use_state(|| "csv".to_string());
 
     // Load data on tab change
     {
@@ -97,7 +99,7 @@ pub fn admin_page() -> Html {
                         "items" => render_item_overview(&item_ov),
                         "workorders" => render_workorder_overview(&work_ov),
                         "campaigns" => render_campaigns(&campaigns, &tags),
-                        "reports" => render_reports(report_status.clone()),
+                        "reports" => render_reports(report_status.clone(), report_type.clone(), report_format.clone()),
                         _ => html! {},
                     }
                 }}
@@ -319,9 +321,11 @@ fn render_campaigns(campaigns: &[admin_api::Campaign], tags: &[admin_api::Tag]) 
     }
 }
 
-fn render_reports(report_status: UseStateHandle<Option<String>>) -> Html {
-    let report_type = use_state(|| "kpi_summary".to_string());
-    let report_format = use_state(|| "csv".to_string());
+fn render_reports(
+    report_status: UseStateHandle<Option<String>>,
+    report_type: UseStateHandle<String>,
+    report_format: UseStateHandle<String>,
+) -> Html {
 
     let on_generate = {
         let rt = report_type.clone();

@@ -1,6 +1,7 @@
 use gloo_net::http::Request;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use uuid::Uuid;
+use wasm_bindgen::JsCast;
 
 const API_BASE: &str = "/api/admin";
 

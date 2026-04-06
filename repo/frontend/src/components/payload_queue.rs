@@ -15,14 +15,14 @@ pub struct PayloadQueueProps {
     pub on_refresh: Callback<()>,
 }
 
-fn status_badge(status: &str) -> (&'static str, &'static str) {
+fn status_badge(status: &str) -> (&'static str, String) {
     match status {
-        "queued" => ("status-scheduled", "Queued"),
-        "exported" => ("status-progress", "Exported"),
-        "delivered" => ("status-completed", "Delivered"),
-        "failed" => ("status-overdue", "Failed"),
-        "retrying" => ("status-makeup", "Retrying"),
-        _ => ("", status),
+        "queued" => ("status-scheduled", "Queued".to_string()),
+        "exported" => ("status-progress", "Exported".to_string()),
+        "delivered" => ("status-completed", "Delivered".to_string()),
+        "failed" => ("status-overdue", "Failed".to_string()),
+        "retrying" => ("status-makeup", "Retrying".to_string()),
+        _ => ("", status.to_string()),
     }
 }
 
@@ -106,6 +106,10 @@ fn render_payload(
 ) -> Html {
     let (badge_class, badge_label) = status_badge(&p.status);
     let id = p.id;
+    let on_log_click = {
+        let cb = on_log.clone();
+        Callback::from(move |_: MouseEvent| cb.emit(id))
+    };
 
     html! {
         <div class="task-card" style="cursor:default;">
@@ -131,9 +135,7 @@ fn render_payload(
                     let cb = on_failed.clone();
                     html! { <button onclick={Callback::from(move |_: MouseEvent| cb.emit((id, "Manual failure".into())))} class="btn-small" style="color:#991b1b;">{"Mark Failed"}</button> }
                 } else { html! {} }}
-                { let cb = on_log.clone();
-                  html! { <button onclick={Callback::from(move |_: MouseEvent| cb.emit(id))} class="btn-tiny">{"Log"}</button> }
-                }
+                <button onclick={on_log_click} class="btn-tiny">{"Log"}</button>
             </div>
         </div>
     }

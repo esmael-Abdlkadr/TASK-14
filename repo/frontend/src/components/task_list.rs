@@ -25,16 +25,16 @@ fn status_class(status: &str) -> &'static str {
     }
 }
 
-fn status_label(status: &str) -> &'static str {
+fn status_label(status: &str) -> String {
     match status {
-        "scheduled" => "Scheduled",
-        "in_progress" => "In Progress",
-        "submitted" => "Submitted",
-        "completed" => "Completed",
-        "overdue" => "Overdue",
-        "missed" => "Missed",
-        "makeup" => "Makeup",
-        _ => status,
+        "scheduled" => "Scheduled".to_string(),
+        "in_progress" => "In Progress".to_string(),
+        "submitted" => "Submitted".to_string(),
+        "completed" => "Completed".to_string(),
+        "overdue" => "Overdue".to_string(),
+        "missed" => "Missed".to_string(),
+        "makeup" => "Makeup".to_string(),
+        _ => status.to_string(),
     }
 }
 
@@ -50,12 +50,14 @@ pub fn task_list(props: &TaskListProps) -> Html {
 
     let resp = match &props.response {
         Some(r) => r,
-        None => return html! {
-            <div class="empty-state">
-                <h3>{"No tasks to display"}</h3>
-                <p>{"Tasks will appear here when schedules are created."}</p>
-            </div>
-        },
+        None => {
+            return html! {
+                <div class="empty-state">
+                    <h3>{"No tasks to display"}</h3>
+                    <p>{"Tasks will appear here when schedules are created."}</p>
+                </div>
+            }
+        }
     };
 
     if resp.tasks.is_empty() {

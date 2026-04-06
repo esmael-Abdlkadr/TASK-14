@@ -44,7 +44,9 @@ pub fn notification_center(props: &NotificationCenterProps) -> Html {
         Callback::from(move |_: MouseEvent| {
             let new = !*expanded;
             expanded.set(new);
-            if new { on_refresh.emit(()); }
+            if new {
+                on_refresh.emit(());
+            }
         })
     };
 
@@ -118,9 +120,20 @@ pub fn notification_center(props: &NotificationCenterProps) -> Html {
     }
 }
 
-fn render_notification(n: &Notification, on_read: Callback<Uuid>, on_dismiss: Callback<Uuid>) -> Html {
+fn render_notification(
+    n: &Notification,
+    on_read: Callback<Uuid>,
+    on_dismiss: Callback<Uuid>,
+) -> Html {
     let is_unread = n.status == "pending" || n.status == "delivered";
     let id = n.id;
+    let on_dismiss_click = {
+        let cb = on_dismiss.clone();
+        Callback::from(move |e: MouseEvent| {
+            e.stop_propagation();
+            cb.emit(id);
+        })
+    };
 
     html! {
         <div class={classes!("notif-item", status_class(&n.status))}>
@@ -144,9 +157,7 @@ fn render_notification(n: &Notification, on_read: Callback<Uuid>, on_dismiss: Ca
                     let cb = on_read.clone();
                     html! { <button onclick={Callback::from(move |e: MouseEvent| { e.stop_propagation(); cb.emit(id); })} class="btn-tiny">{"Read"}</button> }
                 } else { html! {} }}
-                { let cb = on_dismiss.clone();
-                  html! { <button onclick={Callback::from(move |e: MouseEvent| { e.stop_propagation(); cb.emit(id); })} class="btn-tiny btn-dismiss">{"X"}</button> }
-                }
+                <button onclick={on_dismiss_click} class="btn-tiny btn-dismiss">{"X"}</button>
             </div>
         </div>
     }
