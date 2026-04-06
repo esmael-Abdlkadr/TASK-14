@@ -1,0 +1,8 @@
+target/
+frontend/target/
+.git/
+.claude/
+*.md
+.env
+.env.local
+data/

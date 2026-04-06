@@ -1,0 +1,23 @@
+pub mod auth_routes;
+pub mod user_routes;
+pub mod audit_routes;
+pub mod device_routes;
+pub mod kb_routes;
+pub mod inspection_routes;
+pub mod review_routes;
+pub mod admin_routes;
+pub mod messaging_routes;
+pub mod bulk_data_routes;
+pub mod dispute_routes;
+
+pub use auth_routes::*;
+pub use user_routes::*;
+pub use audit_routes::*;
+pub use device_routes::*;
+pub use kb_routes::*;
+pub use inspection_routes::*;
+pub use review_routes::*;
+pub use admin_routes::*;
+pub use messaging_routes::*;
+pub use bulk_data_routes::*;
+pub use dispute_routes::*;

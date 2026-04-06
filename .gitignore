@@ -1,0 +1,15 @@
+.tmp/
+.develop-1.json
+
+# Local assistant/workspace files
+.claude/
+repo/.claude/
+
+# Build/dependency artifacts
+**/target/
+**/node_modules/
+repo/frontend/dist/
+
+# Local runtime/test artifacts
+**/.tokens
+.env

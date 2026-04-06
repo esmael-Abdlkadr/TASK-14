@@ -1,0 +1,38 @@
+[package]
+name = "civicsort-frontend"
+version = "0.1.0"
+edition = "2021"
+description = "CivicSort Yew Frontend - Knowledge Base Search Interface"
+
+[dependencies]
+yew = { version = "0.21", features = ["csr"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = [
+    "HtmlInputElement",
+    "HtmlSelectElement",
+    "HtmlTextAreaElement",
+    "HtmlElement",
+    "Window",
+    "Document",
+    "Element",
+    "Request",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "Headers",
+    "Blob",
+    "BlobPropertyBag",
+    "Url",
+    "Storage",
+    "console",
+] }
+js-sys = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+gloo-net = { version = "0.5", features = ["http"] }
+gloo-timers = { version = "0.3", features = ["futures"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+log = "0.4"
+wasm-logger = "0.2"
