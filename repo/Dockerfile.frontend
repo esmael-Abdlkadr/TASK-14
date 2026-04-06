@@ -31,8 +31,8 @@ COPY frontend/index.html ./
 # Touch to rebuild
 RUN touch src/main.rs
 
-# Build with trunk
-RUN trunk build --release index.html
+# Build with trunk (defaults to ./index.html in current directory)
+RUN trunk build --release
 
 # Stage 2: Nginx to serve static files + reverse proxy to backend
 FROM nginx:1.27-alpine
