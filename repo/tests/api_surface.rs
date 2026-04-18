@@ -379,7 +379,7 @@ async fn every_api_route_handles_request_over_http() {
     let (c_tsk, b_tsk) = api_get!("/api/inspection/tasks", t).await;
     surface_route_hit(&mut n, "GET /api/inspection/tasks", c_tsk, &b_tsk).await;
     if c_tsk == 200 {
-        common::assert_is_array("GET /api/inspection/tasks", &b_tsk);
+        common::assert_field("GET /api/inspection/tasks", &b_tsk, "tasks");
     }
     let (ctk, btk) = api_get!(&format!("/api/inspection/tasks/{}", DUMMY), t).await;
     surface_route_hit(&mut n, "GET /api/inspection/tasks/{id}", ctk, &btk).await;
@@ -476,7 +476,7 @@ async fn every_api_route_handles_request_over_http() {
     let (c_rq, b_rq) = api_get!("/api/reviews/queue", t).await;
     surface_route_hit(&mut n, "GET /api/reviews/queue", c_rq, &b_rq).await;
     if c_rq == 200 {
-        common::assert_is_array("GET /api/reviews/queue", &b_rq);
+        common::assert_field("GET /api/reviews/queue", &b_rq, "assignments");
     }
     let (cag, bag) = api_get!(&format!("/api/reviews/assignments/{}", DUMMY), t).await;
     surface_route_hit(&mut n, "GET /api/reviews/assignments/{id}", cag, &bag).await;
