@@ -1,7 +1,7 @@
 # CivicSort Static Delivery Acceptance & Architecture Audit (Self-Test #3)
 
 ## 1. Verdict
-- Overall conclusion: **Fail**
+- Overall conclusion: **Partial Pass**
 
 ## 2. Scope and Static Verification Boundary
 - Reviewed: backend code under `repo/src/**`, frontend code under `repo/frontend/src/**`, migrations `repo/migrations/**`, tests in `repo/unit_tests/**` and `repo/API_tests/**`, and documentation/config (`repo/README.md`, `repo/.env.example`, runners).
