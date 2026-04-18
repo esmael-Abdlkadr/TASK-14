@@ -84,3 +84,31 @@ pub struct StepUpRequest {
     pub password: String,
     pub action_type: String,
 }
+
+#[cfg(test)]
+mod user_model_tests {
+    use super::*;
+    use chrono::Utc;
+    use uuid::Uuid;
+
+    #[test]
+    fn user_response_from_user_omits_password_hash() {
+        let u = User {
+            id: Uuid::nil(),
+            username: "u1".into(),
+            password_hash: "hash".into(),
+            role: UserRole::Reviewer,
+            status: AccountStatus::Active,
+            locked_until: None,
+            failed_attempts: 0,
+            last_failed_at: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let r = UserResponse::from(u);
+        assert_eq!(r.username, "u1");
+        assert_eq!(r.role, UserRole::Reviewer);
+        let json = serde_json::to_string(&r).expect("serde");
+        assert!(!json.contains("password_hash"));
+    }
+}

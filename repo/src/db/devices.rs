@@ -59,17 +59,22 @@ pub async fn bind_device(
     .await
 }
 
-pub async fn trust_device(pool: &PgPool, device_id: Uuid) -> Result<DeviceBinding, sqlx::Error> {
+pub async fn trust_device(
+    pool: &PgPool,
+    device_id: Uuid,
+    user_id: Uuid,
+) -> Result<Option<DeviceBinding>, sqlx::Error> {
     sqlx::query_as::<_, DeviceBinding>(
         r#"
         UPDATE device_bindings
         SET is_trusted = TRUE, last_seen_at = NOW()
-        WHERE id = $1
+        WHERE id = $1 AND user_id = $2
         RETURNING *
         "#,
     )
     .bind(device_id)
-    .fetch_one(pool)
+    .bind(user_id)
+    .fetch_optional(pool)
     .await
 }
 

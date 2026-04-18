@@ -35,6 +35,7 @@ pub enum AppError {
     InternalError(String),
     BadRequest(String),
     NotFound(String),
+    Conflict(String),
 }
 
 impl fmt::Display for AppError {
@@ -67,6 +68,7 @@ impl fmt::Display for AppError {
             AppError::InternalError(msg) => write!(f, "Internal error: {}", msg),
             AppError::BadRequest(msg) => write!(f, "Bad request: {}", msg),
             AppError::NotFound(msg) => write!(f, "Not found: {}", msg),
+            AppError::Conflict(msg) => write!(f, "Conflict: {}", msg),
         }
     }
 }
@@ -155,6 +157,12 @@ impl ResponseError for AppError {
                     "message": msg
                 }))
             }
+            AppError::Conflict(msg) => {
+                HttpResponse::Conflict().json(serde_json::json!({
+                    "error": "conflict",
+                    "message": msg
+                }))
+            }
             _ => {
                 log::error!("Internal error: {}", self);
                 HttpResponse::InternalServerError().json(serde_json::json!({
@@ -170,5 +178,162 @@ impl From<sqlx::Error> for AppError {
     fn from(err: sqlx::Error) -> Self {
         log::error!("Database error: {:?}", err);
         AppError::DatabaseError(err.to_string())
+    }
+}
+
+/// Postgres `unique_violation` (23505) → HTTP 409; otherwise a database error for logging.
+pub fn map_sqlx_unique_violation(err: sqlx::Error, message: &'static str) -> AppError {
+    if let Some(db) = err.as_database_error() {
+        if db.code().is_some_and(|c| c == "23505") {
+            return AppError::Conflict(message.into());
+        }
+    }
+    AppError::DatabaseError(err.to_string())
+}
+
+#[cfg(test)]
+mod error_tests {
+    use super::*;
+    use actix_web::{http::StatusCode, ResponseError};
+
+    #[test]
+    fn display_covers_all_variants() {
+        let cases: Vec<(AppError, &'static str)> = vec![
+            (AppError::InvalidCredentials, "Invalid username"),
+            (
+                AppError::AccountLocked {
+                    minutes_remaining: 5,
+                },
+                "Try again in 5 minutes",
+            ),
+            (AppError::PasswordTooShort, "12 characters"),
+            (
+                AppError::PasswordRequirementsNotMet("up".into()),
+                "Password requirements",
+            ),
+            (AppError::SessionExpired, "expired"),
+            (AppError::SessionNotFound, "Session not found"),
+            (AppError::Unauthorized, "Authentication required"),
+            (AppError::Forbidden, "Insufficient permissions"),
+            (
+                AppError::RateLimitExceeded {
+                    retry_after_secs: 30,
+                },
+                "Retry after 30 seconds",
+            ),
+            (AppError::BotDetected, "suspicious activity"),
+            (
+                AppError::StepUpRequired("export_csv".into()),
+                "Step-up verification required",
+            ),
+            (AppError::StepUpFailed, "Step-up verification failed"),
+            (AppError::UnknownDevice, "Unknown device"),
+            (AppError::DeviceBindingFailed, "Failed to bind device"),
+            (AppError::EncryptionError("e".into()), "Encryption error"),
+            (AppError::DecryptionError("d".into()), "Decryption error"),
+            (AppError::KeyNotFound, "Encryption key not found"),
+            (AppError::DatabaseError("db".into()), "Database error"),
+            (AppError::InternalError("i".into()), "Internal error"),
+            (AppError::BadRequest("b".into()), "Bad request"),
+            (AppError::NotFound("n".into()), "Not found"),
+            (AppError::Conflict("c".into()), "Conflict"),
+        ];
+        for (err, needle) in cases {
+            let s = err.to_string();
+            assert!(
+                s.contains(needle),
+                "display {:?} → {:?}, expected needle {:?}",
+                err,
+                s,
+                needle
+            );
+        }
+    }
+
+    #[test]
+    fn error_response_status_codes() {
+        assert_eq!(
+            AppError::InvalidCredentials.error_response().status(),
+            StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            AppError::AccountLocked {
+                minutes_remaining: 1
+            }
+            .error_response()
+            .status(),
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            AppError::PasswordTooShort.error_response().status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            AppError::SessionExpired.error_response().status(),
+            StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            AppError::Unauthorized.error_response().status(),
+            StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            AppError::Forbidden.error_response().status(),
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            AppError::RateLimitExceeded {
+                retry_after_secs: 9
+            }
+            .error_response()
+            .status(),
+            StatusCode::TOO_MANY_REQUESTS
+        );
+        assert_eq!(
+            AppError::BotDetected.error_response().status(),
+            StatusCode::TOO_MANY_REQUESTS
+        );
+        assert_eq!(
+            AppError::StepUpRequired("x".into())
+                .error_response()
+                .status(),
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            AppError::StepUpFailed.error_response().status(),
+            StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            AppError::UnknownDevice.error_response().status(),
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(
+            AppError::BadRequest("bad".into()).error_response().status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            AppError::NotFound("nf".into()).error_response().status(),
+            StatusCode::NOT_FOUND
+        );
+        assert_eq!(
+            AppError::Conflict("x".into()).error_response().status(),
+            StatusCode::CONFLICT
+        );
+        assert_eq!(
+            AppError::DatabaseError("db".into())
+                .error_response()
+                .status(),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+    }
+
+    #[test]
+    fn from_sqlx_error_maps_to_database_error() {
+        let e: AppError = sqlx::Error::RowNotFound.into();
+        match e {
+            AppError::DatabaseError(msg) => {
+                assert!(!msg.is_empty());
+            }
+            _ => panic!("expected DatabaseError"),
+        }
     }
 }

@@ -117,7 +117,9 @@ pub async fn trust_device(
         return Err(AppError::StepUpFailed);
     }
 
-    let device = db::devices::trust_device(pool.get_ref(), body.device_id).await?;
+    let device = db::devices::trust_device(pool.get_ref(), body.device_id, auth_user.user_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Device not found".to_string()))?;
 
     audit_action(
         pool.get_ref(), &auth_user, "device_trusted", Some("device"),

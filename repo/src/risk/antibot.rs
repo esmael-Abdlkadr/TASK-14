@@ -14,7 +14,7 @@ pub async fn check_antibot(
     let window = Utc::now() - Duration::seconds(10);
 
     // Check for burst requests (>10 of the same action in 10 seconds)
-    let burst_count: i64 = sqlx::query_scalar(
+    let burst_count: i32 = sqlx::query_scalar(
         r#"
         SELECT request_count FROM rate_limit_buckets
         WHERE user_id = $1 AND bucket_key = $2 AND window_start > $3
@@ -26,7 +26,7 @@ pub async fn check_antibot(
     .fetch_optional(pool)
     .await
     .map_err(|e| AppError::DatabaseError(e.to_string()))?
-    .unwrap_or(0);
+    .unwrap_or(0_i32);
 
     if burst_count > 10 {
         log::warn!(

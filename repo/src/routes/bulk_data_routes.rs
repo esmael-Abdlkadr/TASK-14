@@ -15,6 +15,13 @@ fn get_ua(req: &HttpRequest) -> Option<String> {
     req.headers().get("User-Agent").and_then(|v| v.to_str().ok()).map(String::from)
 }
 
+fn sqlx_row_or_db(e: sqlx::Error, not_found: &'static str) -> AppError {
+    match e {
+        sqlx::Error::RowNotFound => AppError::NotFound(not_found.into()),
+        e => AppError::DatabaseError(e.to_string()),
+    }
+}
+
 // ═══════════════════════════════════════════════════════════
 // IMPORT
 // ═══════════════════════════════════════════════════════════
@@ -192,7 +199,8 @@ pub async fn revert_change(
     require_role(&auth, &[UserRole::OperationsAdmin, UserRole::DepartmentManager])?;
 
     let change = bulk_db::revert_change(pool.get_ref(), path.into_inner(), auth.user_id)
-        .await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        .await
+        .map_err(|e| sqlx_row_or_db(e, "Change record not found"))?;
 
     audit_action(pool.get_ref(), &auth, "change_reverted", Some("data_change"),
         Some(&change.id.to_string()), None,
@@ -233,7 +241,8 @@ pub async fn resolve_duplicate(
     require_role(&auth, &[UserRole::OperationsAdmin, UserRole::DepartmentManager])?;
     let dup_id = path.into_inner();
     let flag = bulk_db::resolve_duplicate(pool.get_ref(), dup_id, &body.status, auth.user_id)
-        .await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        .await
+        .map_err(|e| sqlx_row_or_db(e, "Duplicate flag not found"))?;
 
     audit_action(pool.get_ref(), &auth, "duplicate_resolved", Some("duplicate_flag"),
         Some(&dup_id.to_string()), Some(serde_json::json!({"status": &body.status})),
@@ -317,7 +326,10 @@ pub async fn resolve_conflict(
     let conflict = bulk_db::resolve_conflict(
         pool.get_ref(), conflict_id, &body.resolution,
         body.custom_value.as_ref(), auth.user_id,
-    ).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+    ).await.map_err(|e| match e {
+        sqlx::Error::RowNotFound => AppError::NotFound(format!("conflict {} not found", conflict_id)),
+        other => AppError::DatabaseError(other.to_string()),
+    })?;
 
     audit_action(pool.get_ref(), &auth, "conflict_resolved", Some("merge_conflict"),
         Some(&conflict_id.to_string()), Some(serde_json::json!({"resolution": &body.resolution})),

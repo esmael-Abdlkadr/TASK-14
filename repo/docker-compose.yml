@@ -1,3 +1,5 @@
+name: civicsort
+
 services:
   # ── PostgreSQL Database ──────────────────────────────────
   db:
@@ -8,8 +10,8 @@ services:
       POSTGRES_PASSWORD: civicsort_secret
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # No host port: DB is only used on the compose network (backend → db:5432). Avoids clashes with
+    # any Postgres on the host. To expose Postgres locally: docker compose -f docker-compose.yml -f docker-compose.db-host.yml up -d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U civicsort -d civicsort"]
       interval: 5s
@@ -21,6 +23,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
+    entrypoint: ["/app/civicsort"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080/api/health >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 36
+      start_period: 90s
     environment:
       DATABASE_URL: postgres://civicsort:civicsort_secret@db:5432/civicsort
       BIND_ADDRESS: "0.0.0.0:8080"
@@ -46,7 +55,8 @@ services:
     ports:
       - "3000:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   pgdata:

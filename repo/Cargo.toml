@@ -3,6 +3,11 @@ name = "civicsort"
 version = "0.1.0"
 edition = "2021"
 description = "CivicSort - Offline Operations Platform for City Sanitation Teams"
+autotests = false
+
+[[test]]
+name = "http_api"
+path = "tests/http_api.rs"
 
 [dependencies]
 actix-web = "4"
@@ -28,3 +33,6 @@ dotenv = "0.15"
 jsonwebtoken = "9"
 thiserror = "1"
 futures = "0.3"
+
+[dev-dependencies]
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }

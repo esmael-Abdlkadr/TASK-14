@@ -196,4 +196,41 @@ mod tests {
         let result = render_template(template, &vars, &defs).unwrap();
         assert_eq!(result, "Score: 4.50");
     }
+
+    #[test]
+    fn test_number_integer_branch() {
+        let template = "n={{v}}";
+        let defs = vec![make_var("v", "number", true, None)];
+        let mut vars = HashMap::new();
+        vars.insert("v".into(), "42.0".into());
+        let result = render_template(template, &vars, &defs).unwrap();
+        assert_eq!(result, "n=42");
+    }
+
+    #[test]
+    fn test_adhoc_placeholder_from_variables_map() {
+        let template = "Hello {{extra}}";
+        let defs: Vec<TemplateVariable> = vec![];
+        let mut vars = HashMap::new();
+        vars.insert("extra".into(), "World".into());
+        let result = render_template(template, &vars, &defs).unwrap();
+        assert_eq!(result, "Hello World");
+    }
+
+    #[test]
+    fn test_payload_nested_value_uses_fallback_string() {
+        let payload = serde_json::json!({ "nested": { "a": 1 } });
+        let vars = payload_to_variables(&payload);
+        assert!(vars.get("nested").unwrap().contains('a'));
+    }
+
+    #[test]
+    fn test_number_invalid_falls_back_to_raw_string() {
+        let template = "x={{v}}";
+        let defs = vec![make_var("v", "number", true, None)];
+        let mut vars = HashMap::new();
+        vars.insert("v".into(), "not-a-number".into());
+        let result = render_template(template, &vars, &defs).unwrap();
+        assert_eq!(result, "x=not-a-number");
+    }
 }

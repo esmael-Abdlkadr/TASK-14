@@ -86,3 +86,28 @@ pub async fn check_stepup(
 
     Ok(exists)
 }
+
+#[cfg(test)]
+mod requires_stepup_tests {
+    use super::requires_stepup;
+
+    #[test]
+    fn critical_actions_require_stepup() {
+        for action in [
+            "export_csv",
+            "export_pdf",
+            "rule_rollback",
+            "result_publication",
+            "user_role_change",
+            "system_config_change",
+        ] {
+            assert!(requires_stepup(action), "{}", action);
+        }
+    }
+
+    #[test]
+    fn benign_actions_skip_stepup() {
+        assert!(!requires_stepup("read_dashboard"));
+        assert!(!requires_stepup(""));
+    }
+}

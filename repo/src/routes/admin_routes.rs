@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::admin::reports;
 use crate::db::admin as admin_db;
-use crate::errors::AppError;
+use crate::errors::{map_sqlx_unique_violation, AppError};
 use crate::middleware::auth_middleware::{authenticate_request, require_role};
 use crate::middleware::audit_middleware::audit_action;
 use crate::middleware::rate_limit_middleware::apply_rate_limit;
@@ -215,7 +215,8 @@ pub async fn create_tag(
     let auth = authenticate_request(pool.get_ref(), &req).await?;
     require_role(&auth, &[UserRole::OperationsAdmin])?;
     let tag = admin_db::create_tag(pool.get_ref(), &body.name, body.color.as_deref())
-        .await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        .await
+        .map_err(|e| map_sqlx_unique_violation(e, "Tag name already exists"))?;
     Ok(HttpResponse::Created().json(tag))
 }
 

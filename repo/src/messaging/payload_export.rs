@@ -169,7 +169,10 @@ pub async fn mark_payload_failed(
 
     let updated = msg_db::update_payload_status(pool, payload_id, &new_status, Some(error))
         .await
-        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => AppError::NotFound(format!("Payload {} not found", payload_id)),
+            other => AppError::DatabaseError(other.to_string()),
+        })?;
 
     if updated.retry_count >= updated.max_retries {
         // Exceeded max retries, mark as permanently failed
@@ -201,4 +204,57 @@ pub struct ExportBatchResult {
     pub count: usize,
     pub export_dir: String,
     pub files: Vec<String>,
+}
+
+#[cfg(test)]
+mod payload_export_unit_tests {
+    use super::{build_payload_file};
+    use crate::models::{
+        ExternalPayload, NotificationChannel, PayloadStatus,
+    };
+    use chrono::Utc;
+    use uuid::Uuid;
+
+    fn sample_payload() -> ExternalPayload {
+        ExternalPayload {
+            id: Uuid::nil(),
+            notification_id: None,
+            channel: NotificationChannel::Sms,
+            recipient: "+15550001".into(),
+            subject: Some("Subj".into()),
+            body: "hello".into(),
+            metadata: Some(serde_json::json!({"k": 1})),
+            export_path: None,
+            exported_at: None,
+            status: PayloadStatus::Queued,
+            retry_count: 0,
+            max_retries: 3,
+            last_error: None,
+            next_retry_at: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn build_payload_file_formats_all_channels() {
+        let base = sample_payload();
+        let sms = build_payload_file(&base, &NotificationChannel::Sms);
+        assert!(sms.contains("\"type\": \"sms\""));
+
+        let mut email = base.clone();
+        email.channel = NotificationChannel::Email;
+        let email_out = build_payload_file(&email, &NotificationChannel::Email);
+        assert!(email_out.contains("\"type\": \"email\""));
+
+        let mut push = base.clone();
+        push.channel = NotificationChannel::Push;
+        let push_out = build_payload_file(&push, &NotificationChannel::Push);
+        assert!(push_out.contains("\"type\": \"push\""));
+
+        let mut in_app = base.clone();
+        in_app.channel = NotificationChannel::InApp;
+        let in_app_out = build_payload_file(&in_app, &NotificationChannel::InApp);
+        assert!(in_app_out.contains("\"type\": \"in_app\""));
+    }
 }

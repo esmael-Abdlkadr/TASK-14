@@ -71,3 +71,31 @@ pub async fn invalidate_session(pool: &PgPool, session_id: Uuid) -> Result<(), A
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))
 }
+
+#[cfg(test)]
+mod session_crypto_tests {
+    use super::{generate_session_token, hash_token};
+
+    #[test]
+    fn generated_token_is_unique_and_non_trivial() {
+        let a = generate_session_token();
+        let b = generate_session_token();
+        assert_ne!(a, b);
+        assert!(a.len() > 40);
+        assert!(a.is_ascii());
+    }
+
+    #[test]
+    fn hash_token_is_deterministic_hex() {
+        let h1 = hash_token("same");
+        let h2 = hash_token("same");
+        assert_eq!(h1, h2);
+        assert_eq!(h1.len(), 64);
+        assert!(h1.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn hash_token_differs_for_different_inputs() {
+        assert_ne!(hash_token("a"), hash_token("b"));
+    }
+}

@@ -213,7 +213,7 @@ pub async fn get_payload_queue(
     limit: i64, offset: i64,
 ) -> Result<Vec<ExternalPayload>, sqlx::Error> {
     let mut sql = "SELECT * FROM external_payloads WHERE 1=1".to_string();
-    let mut idx = 1u32;
+    let mut idx = 0u32;
     if status.is_some() { idx += 1; sql.push_str(&format!(" AND status=${}", idx)); }
     if channel.is_some() { idx += 1; sql.push_str(&format!(" AND channel=${}", idx)); }
     idx += 1; let lim_idx = idx; idx += 1;

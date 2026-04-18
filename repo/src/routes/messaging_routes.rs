@@ -3,7 +3,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::db::messaging as msg_db;
-use crate::errors::AppError;
+use crate::errors::{map_sqlx_unique_violation, AppError};
 use crate::messaging::{payload_export, trigger};
 use crate::middleware::auth_middleware::{authenticate_request, require_role};
 use crate::middleware::audit_middleware::audit_action;
@@ -34,7 +34,7 @@ pub async fn create_template(
         body.subject_template.as_deref(), &body.body_template,
         body.sms_template.as_deref(), body.html_template.as_deref(),
         Some(auth.user_id),
-    ).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+    ).await.map_err(|e| map_sqlx_unique_violation(e, "Template name already exists"))?;
 
     let variables = if let Some(ref vars) = body.variables {
         msg_db::set_template_variables(pool.get_ref(), tmpl.id, vars)
@@ -130,7 +130,14 @@ pub async fn create_trigger(
         body.channel.as_ref().unwrap_or(&NotificationChannel::InApp),
         body.conditions.as_ref(), body.target_role.as_deref(),
         body.priority.unwrap_or(0), Some(auth.user_id),
-    ).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+    ).await.map_err(|e| {
+        if let Some(db) = e.as_database_error() {
+            if db.code().is_some_and(|c| c == "23503") {
+                return AppError::BadRequest("Referenced template does not exist".to_string());
+            }
+        }
+        map_sqlx_unique_violation(e, "Trigger rule name already exists")
+    })?;
 
     audit_action(pool.get_ref(), &auth, "trigger_rule_created",
         Some("trigger_rule"), Some(&rule.id.to_string()),

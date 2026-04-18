@@ -1,0 +1,7 @@
+# Optional: publish Postgres to the host for GUI clients / psql from macOS.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.db-host.yml up -d
+# Pick a free port if 15432 is taken: set CIVICSORT_PG_PORT or edit the mapping below.
+services:
+  db:
+    ports:
+      - "${CIVICSORT_PG_PORT:-15432}:5432"

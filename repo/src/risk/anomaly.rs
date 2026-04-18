@@ -100,3 +100,19 @@ fn mask_ip(ip: &str) -> String {
         "***".to_string()
     }
 }
+
+#[cfg(test)]
+mod anomaly_mask_tests {
+    use super::mask_ip;
+
+    #[test]
+    fn masks_ipv4_last_octet() {
+        assert_eq!(mask_ip("10.0.0.25"), "10.0.0.*");
+    }
+
+    #[test]
+    fn masks_non_dot_ip() {
+        assert_eq!(mask_ip("::1"), "***");
+        assert_eq!(mask_ip("nope"), "***");
+    }
+}

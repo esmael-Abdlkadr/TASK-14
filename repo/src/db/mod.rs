@@ -21,36 +21,79 @@ pub async fn create_pool(database_url: &str) -> Result<PgPool, sqlx::Error> {
         .await
 }
 
+const MIGRATIONS: &[(i32, &str)] = &[
+    (1, include_str!("../../migrations/001_initial_schema.sql")),
+    (2, include_str!("../../migrations/002_knowledge_base.sql")),
+    (3, include_str!("../../migrations/003_inspection_tasks.sql")),
+    (4, include_str!("../../migrations/004_review_scorecards.sql")),
+    (5, include_str!("../../migrations/005_admin_dashboard.sql")),
+    (6, include_str!("../../migrations/006_messaging.sql")),
+    (7, include_str!("../../migrations/007_bulk_data.sql")),
+    (8, include_str!("../../migrations/008_disputed_classifications.sql")),
+    (9, include_str!("../../migrations/009_encrypted_fields.sql")),
+    (10, include_str!("../../migrations/010_device_fingerprint_hash.sql")),
+];
+
 pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
-    let migration_001 = include_str!("../../migrations/001_initial_schema.sql");
-    sqlx::raw_sql(migration_001).execute(pool).await?;
+    sqlx::query(
+        r#"CREATE TABLE IF NOT EXISTS _civicsort_migrations (
+            version INTEGER PRIMARY KEY,
+            applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )"#,
+    )
+    .execute(pool)
+    .await?;
 
-    let migration_002 = include_str!("../../migrations/002_knowledge_base.sql");
-    sqlx::raw_sql(migration_002).execute(pool).await?;
+    let tracked: i64 =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*)::bigint FROM _civicsort_migrations")
+            .fetch_one(pool)
+            .await?;
 
-    let migration_003 = include_str!("../../migrations/003_inspection_tasks.sql");
-    sqlx::raw_sql(migration_003).execute(pool).await?;
+    if tracked == 0 {
+        let legacy_schema: bool = sqlx::query_scalar::<_, bool>(
+            r#"SELECT EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = 'users'
+            ) OR EXISTS (
+                SELECT 1 FROM pg_type t
+                JOIN pg_namespace n ON n.oid = t.typnamespace
+                WHERE n.nspname = 'public' AND t.typname = 'user_role'
+            )"#,
+        )
+        .fetch_one(pool)
+        .await?;
 
-    let migration_004 = include_str!("../../migrations/004_review_scorecards.sql");
-    sqlx::raw_sql(migration_004).execute(pool).await?;
+        if legacy_schema {
+            for v in 1_i32..=10_i32 {
+                sqlx::query("INSERT INTO _civicsort_migrations (version) VALUES ($1)")
+                    .bind(v)
+                    .execute(pool)
+                    .await?;
+            }
+            return Ok(());
+        }
+    }
 
-    let migration_005 = include_str!("../../migrations/005_admin_dashboard.sql");
-    sqlx::raw_sql(migration_005).execute(pool).await?;
+    for &(version, sql) in MIGRATIONS {
+        let applied: bool = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM _civicsort_migrations WHERE version = $1)",
+        )
+        .bind(version)
+        .fetch_one(pool)
+        .await?;
 
-    let migration_006 = include_str!("../../migrations/006_messaging.sql");
-    sqlx::raw_sql(migration_006).execute(pool).await?;
+        if applied {
+            continue;
+        }
 
-    let migration_007 = include_str!("../../migrations/007_bulk_data.sql");
-    sqlx::raw_sql(migration_007).execute(pool).await?;
-
-    let migration_008 = include_str!("../../migrations/008_disputed_classifications.sql");
-    sqlx::raw_sql(migration_008).execute(pool).await?;
-
-    let migration_009 = include_str!("../../migrations/009_encrypted_fields.sql");
-    sqlx::raw_sql(migration_009).execute(pool).await?;
-
-    let migration_010 = include_str!("../../migrations/010_device_fingerprint_hash.sql");
-    sqlx::raw_sql(migration_010).execute(pool).await?;
+        let mut tx = pool.begin().await?;
+        sqlx::raw_sql(sql).execute(&mut *tx).await?;
+        sqlx::query("INSERT INTO _civicsort_migrations (version) VALUES ($1)")
+            .bind(version)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+    }
 
     Ok(())
 }

@@ -5,7 +5,7 @@ use crate::audit::service::record_auth_event;
 use crate::auth::login::login;
 use crate::auth::password::{hash_password, validate_password};
 use crate::db;
-use crate::errors::AppError;
+use crate::errors::{map_sqlx_unique_violation, AppError};
 use crate::middleware::auth_middleware::{authenticate_request, AuthenticatedUser};
 use crate::models::{CreateUserRequest, LoginRequest, StepUpRequest};
 use crate::risk::anomaly::check_login_anomaly;
@@ -53,7 +53,8 @@ pub async fn register(
     validate_password(&body.password)?;
 
     let password_hash = hash_password(&body.password)?;
-    let user = db::users::create_user(pool.get_ref(), &body, &password_hash).await?;
+    let user = db::users::create_user(pool.get_ref(), &body, &password_hash).await
+        .map_err(|e| map_sqlx_unique_violation(e, "Username already taken"))?;
 
     record_auth_event(
         pool.get_ref(),

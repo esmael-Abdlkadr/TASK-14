@@ -667,7 +667,10 @@ pub async fn review_submission(
         body.review_notes.as_deref(),
     )
     .await
-    .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+    .map_err(|e| match e {
+        sqlx::Error::RowNotFound => AppError::NotFound(format!("submission {} not found", id)),
+        other => AppError::DatabaseError(other.to_string()),
+    })?;
 
     // If approved, mark instance as completed
     if body.status == SubmissionStatus::Approved {

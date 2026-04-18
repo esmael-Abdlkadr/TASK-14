@@ -3,7 +3,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::db::knowledge_base as kb_db;
-use crate::errors::AppError;
+use crate::errors::{map_sqlx_unique_violation, AppError};
 use crate::images::storage;
 use crate::middleware::auth_middleware::{authenticate_request, require_role};
 use crate::middleware::audit_middleware::audit_action;
@@ -416,7 +416,7 @@ pub async fn create_category(
         body.sort_order.unwrap_or(0),
     )
     .await
-    .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+    .map_err(|e| map_sqlx_unique_violation(e, "Category name already exists"))?;
 
     audit_action(
         pool.get_ref(),

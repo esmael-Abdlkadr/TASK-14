@@ -3,7 +3,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::db::review as review_db;
-use crate::errors::AppError;
+use crate::errors::{map_sqlx_unique_violation, AppError};
 use crate::middleware::auth_middleware::{authenticate_request, require_role};
 use crate::middleware::audit_middleware::audit_action;
 use crate::middleware::rate_limit_middleware::apply_rate_limit;
@@ -368,7 +368,7 @@ pub async fn declare_coi(
         pool.get_ref(), auth.user_id, &body.conflict_type,
         body.target_user_id, body.department.as_deref(),
         body.description.as_deref(), Some(auth.user_id),
-    ).await.map_err(|e| AppError::DatabaseError(e.to_string()))?;
+    ).await.map_err(|e| map_sqlx_unique_violation(e, "Conflict of interest already declared"))?;
 
     audit_action(pool.get_ref(), &auth, "coi_declared", Some("conflict_of_interest"),
         Some(&coi.id.to_string()), Some(serde_json::json!({"type": &body.conflict_type})),
@@ -538,11 +538,11 @@ pub fn review_config(cfg: &mut web::ServiceConfig) {
             .route("/assignments/{id}/submit", web::post().to(submit_review))
             // Queue
             .route("/queue", web::get().to(review_queue))
-            // Reviews
-            .route("/{id}", web::get().to(get_review))
-            // COI
+            // COI — must come before /{id} to prevent "coi" being parsed as UUID
             .route("/coi", web::post().to(declare_coi))
             .route("/coi", web::get().to(list_coi))
-            .route("/coi/{id}", web::delete().to(revoke_coi)),
+            .route("/coi/{id}", web::delete().to(revoke_coi))
+            // Reviews (catch-all /{id} last)
+            .route("/{id}", web::get().to(get_review)),
     );
 }
